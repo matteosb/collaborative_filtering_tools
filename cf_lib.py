@@ -1,4 +1,5 @@
-import numpy as np
+import numpy
+
 
 class PreferenceVector(object):
     """General representation of a item preference vector."""
@@ -16,7 +17,7 @@ class PreferenceVector(object):
         del self.prefs[item_id]
 
     def iter_prefs(self):
-        # uses items to support deletion from the vector while iterating
+        # uses items() to support deletion from the vector while iterating
         for item_id, score in self.prefs.items():
             yield item_id, score
 
@@ -30,6 +31,7 @@ class IndexBiMap(object):
     Assists creating dense matrecies by converting arbitrary ids to indecies
     and indecies back to ids.
     """
+
     def __init__(self):
         self.id_to_index = {}
         self.index_to_id = {}
@@ -38,52 +40,47 @@ class IndexBiMap(object):
     def get_index(self, the_id):
         return self.id_to_index[the_id]
 
-    def has_id(self, the_id):
-        return the_id in self.id_to_index
-
     def get_id(self, the_index):
         return self.index_to_id[the_index]
-
-    def highest_index(self):
-        return self.curr_index
 
     def size(self):
         return self.curr_index + 1
 
-    def issue_index(self, the_id):
-        if the_id not in self.id_to_index:
+    def get_or_issue_index(self, the_id):
+        if the_id in self.id_to_index:
+            return self.id_to_index[the_id]
+        else:
             self.curr_index += 1
             self.id_to_index[the_id] = self.curr_index
             self.index_to_id[self.curr_index] = the_id
             return self.curr_index
-        else:
-            raise IndexExistsError("Todo")
 
-    def __str__(self):
-        return str(self.index_to_id)
+    def __repr__(self):
+        return repr(self.index_to_id)
 
 
-def build_user_item_mat_from_pref_vectors(pref_vectors):
+def build_matrix_from_pref_vectors(user_vectors, score_cb=None):
+    if score_cb is None:
+        score_cb = lambda x: x
     user_idxs = IndexBiMap()
     item_idxs = IndexBiMap()
-    for vector in pref_vectors:
+    for vector in user_vectors:
         user_idxs.get_or_issue_index(vector.user_id)
-        for item, score in vector.iter_prefs():
-            item_idxs.issue_index(item)
+        for item, _ in vector.iter_prefs():
+            item_idxs.get_or_issue_index(item)
     # We loop through the data twice here but build a dense matrix
     # the alternatives are:
     # 1) loop once, build a sparse matrix
     #     and convert to dense (numpy likes dense matricies)
     # 2) if dimensions are known, build the zero matrix first,
     #     loop once and fill in
-    mat = np.zeros((user_idxs.size(), item_idxs.size()), dtype=dtype)
-    for vector in user_id_vector_map.values():
+    mat = numpy.zeros((user_idxs.size(), item_idxs.size()), dtype=numpy.float32)
+    for vector in user_vectors:
         row = user_idxs.get_index(vector.user_id)
         for item, score in vector.iter_prefs():
             column = item_idxs.get_index(item)
             mat[row][column] = score_cb(score)
-    return np.matrix(mat), user_idxs, item_idxs
-
+    return numpy.matrix(mat), user_idxs, item_idxs
 
 
 def compute_item_to_item_cos_sim_mat(mat):
@@ -99,15 +96,24 @@ def compute_user_to_user_cos_sim_mat(mat):
     _normalize_sim_mat(sims)
     return sims
 
+
 def _normalize_sim_mat(sim_mat):
-    norms = np.sqrt(np.diag(sim_mat))
-    # Compute cosines by dividing by norms (sim matrix is assumed to be M^TM or MM^T, so the diagonal is the norm^2)
-    # there might be a better way to divide by the norms using fancy numpy slicing/broadcast rules
-    # matrix is modified in place
-    for i in xrange(len(norms)):
-        sim_mat[i, :] = sim_mat[i, :]/norms[i]
-        sim_mat[:, i] = sim_mat[:, i]/norms[i]
+    norms = numpy.sqrt(numpy.diag(sim_mat))
+    denominators = numpy.outer(norms, norms)
+    # divides in place
+    numpy.divide(sim_mat, denominators, out=sim_mat)
     return sim_mat
 
-class IndexExistsError(Exception):
-    pass
+
+def _top_n_plus_one(_1d_mat, n):
+    return _1d_mat.A1.argsort()[-1:-(n + 2):-1].tolist()
+
+
+def top_n_similar_items(item_id, item_sim_mat, item_idxs, n=10):
+    item_idx = item_idxs.get_index(item_id)
+    top_n_idxs = _top_n_plus_one(item_sim_mat[item_idx, :], n)
+    return [item_idxs.get_id(idx) for idx in top_n_idxs if idx != item_idx]
+
+
+def get_user_vector_from_user_item_mat(id_, user_item_mat, user_idxs):
+    return user_item_mat[user_idxs.get_index(id_), :].T
