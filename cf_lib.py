@@ -107,12 +107,12 @@ def fast_cosine_similarity_matrix(mat):
 
 def compute_item_to_item_cos_sim_mat(mat):
     """Generate a item-to-item similarity matrix, using cosine similarity"""
-    return fast_cosine_similarity_matrix(mat)
+    return fast_cosine_similarity_matrix(mat.T)
 
 
 def compute_user_to_user_cos_sim_mat(mat):
     """Generate a user-to-user similarity matrix, using cosine similarity"""
-    return fast_cosine_similarity_matrix(mat.T)
+    return fast_cosine_similarity_matrix(mat)
 
 
 def top_n_similar_items(item_id, item_sim_mat, item_idxs, n=10):
