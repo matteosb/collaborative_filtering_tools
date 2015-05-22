@@ -1,5 +1,5 @@
-import numpy
-
+"""A library for collaborative filtering and similarity-based recommendations"""
+import numpy as np
 
 class PreferenceVector(object):
     """General representation of a item preference vector."""
@@ -11,7 +11,7 @@ class PreferenceVector(object):
         self.prefs[item_id] = score
 
     def get(self, item_id):
-        self.prefs[item_id]
+        return self.prefs[item_id]
 
     def remove(self, item_id):
         del self.prefs[item_id]
@@ -71,42 +71,48 @@ def build_matrix_from_pref_vectors(user_vectors, score_cb=None):
     # We loop through the data twice here but build a dense matrix
     # the alternatives are:
     # 1) loop once, build a sparse matrix
-    #     and convert to dense (numpy likes dense matricies)
+    #     and convert to dense (numpy likes dense matrices)
     # 2) if dimensions are known, build the zero matrix first,
     #     loop once and fill in
-    mat = numpy.zeros((user_idxs.size(), item_idxs.size()), dtype=numpy.float32)
+    mat = np.zeros((user_idxs.size(), item_idxs.size()), dtype=np.float32)
     for vector in user_vectors:
         row = user_idxs.get_index(vector.user_id)
         for item, score in vector.iter_prefs():
             column = item_idxs.get_index(item)
             mat[row][column] = score_cb(score)
-    return numpy.matrix(mat), user_idxs, item_idxs
+    return np.matrix(mat), user_idxs, item_idxs
+
+
+def fast_cosine_similarity_matrix(mat):
+    """A very fast way to create a cosine similarity matrix
+
+    This function is fast because it performs all operations
+    as matrix operations and, where possible, in-place. Some
+    cursory testing showed at least an of magnitude improvement
+    over calculating the cosine between vectors individually using
+    numpy.
+    """
+    # calculate the inner products between all row vectors
+    products = mat * mat.T
+    # for each row vector, the magnitude can be read off of the
+    # resulting diagonal
+    norms = np.sqrt(np.diag(products))
+    # for each cell, calculate the product of the norms, this is the denominator
+    # for the cosine calculation
+    denominators = np.outer(norms, norms)
+    # divide in place
+    np.divide(products, denominators, out=products)
+    return products
 
 
 def compute_item_to_item_cos_sim_mat(mat):
     """Generate a item-to-item similarity matrix, using cosine similarity"""
-    sims = mat.T * mat
-    _normalize_sim_mat(sims)
-    return sims
+    return fast_cosine_similarity_matrix(mat)
 
 
 def compute_user_to_user_cos_sim_mat(mat):
     """Generate a user-to-user similarity matrix, using cosine similarity"""
-    sims = mat * mat.T
-    _normalize_sim_mat(sims)
-    return sims
-
-
-def _normalize_sim_mat(sim_mat):
-    norms = numpy.sqrt(numpy.diag(sim_mat))
-    denominators = numpy.outer(norms, norms)
-    # divides in place
-    numpy.divide(sim_mat, denominators, out=sim_mat)
-    return sim_mat
-
-
-def _top_n_plus_one(_1d_mat, n):
-    return _1d_mat.A1.argsort()[-1:-(n + 2):-1].tolist()
+    return fast_cosine_similarity_matrix(mat.T)
 
 
 def top_n_similar_items(item_id, item_sim_mat, item_idxs, n=10):
@@ -117,3 +123,7 @@ def top_n_similar_items(item_id, item_sim_mat, item_idxs, n=10):
 
 def get_user_vector_from_user_item_mat(id_, user_item_mat, user_idxs):
     return user_item_mat[user_idxs.get_index(id_), :].T
+
+
+def _top_n_plus_one(_1d_mat, n):
+    return _1d_mat.A1.argsort()[-1:-(n + 2):-1].tolist()
