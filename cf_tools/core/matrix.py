@@ -1,70 +1,28 @@
-"""A library for collaborative filtering and similarity-based recommendations"""
+"""Core matrix and vector operations"""
+from .models import IndexBiMap
 import numpy as np
 
-class PreferenceVector(object):
-    """General representation of a item preference vector."""
-    def __init__(self, user_id, pref_dict=None):
-        self.user_id = user_id
-        self.prefs = pref_dict or {}
 
-    def add(self, item_id, score):
-        self.prefs[item_id] = score
+def build_matrix_from_pref_vectors(pref_vectors, score_cb=None):
+    """Build a user-item matrix from a list of preference vectors
 
-    def get(self, item_id):
-        return self.prefs[item_id]
+    Users are rows, items are columns. This convention is used in all
+    other functions in this package.
 
-    def remove(self, item_id):
-        del self.prefs[item_id]
+    Arguments:
+      pref_vectors: list[PreferenceVector], a colelction of preference vectors,
+        note that the data structure is iterated over twice so some collections
+        won't work
+      score_cb: numeric -> numeric, an optional callback to modify scores
 
-    def iter_prefs(self):
-        # uses items() to support deletion from the vector while iterating
-        for item_id, score in self.prefs.items():
-            yield item_id, score
-
-    def __repr__(self):
-        return "PreferenceVector({0}, {1})".format(self.user_id, self.prefs)
-
-
-class IndexBiMap(object):
-    """A bidirectional map used to issue and track matrix indecies.
-
-    Assists creating dense matrecies by converting arbitrary ids to indecies
-    and indecies back to ids.
+    Returns:
+      A (user-item numpy matrix, user IndexBiMap, item IndexBiMap) 3-tuple
     """
-
-    def __init__(self):
-        self.id_to_index = {}
-        self.index_to_id = {}
-        self.curr_index = -1
-
-    def get_index(self, the_id):
-        return self.id_to_index[the_id]
-
-    def get_id(self, the_index):
-        return self.index_to_id[the_index]
-
-    def size(self):
-        return self.curr_index + 1
-
-    def get_or_issue_index(self, the_id):
-        if the_id in self.id_to_index:
-            return self.id_to_index[the_id]
-        else:
-            self.curr_index += 1
-            self.id_to_index[the_id] = self.curr_index
-            self.index_to_id[self.curr_index] = the_id
-            return self.curr_index
-
-    def __repr__(self):
-        return repr(self.index_to_id)
-
-
-def build_matrix_from_pref_vectors(user_vectors, score_cb=None):
     if score_cb is None:
         score_cb = lambda x: x
     user_idxs = IndexBiMap()
     item_idxs = IndexBiMap()
-    for vector in user_vectors:
+    for vector in pref_vectors:
         user_idxs.get_or_issue_index(vector.user_id)
         for item, _ in vector.iter_prefs():
             item_idxs.get_or_issue_index(item)
@@ -75,7 +33,7 @@ def build_matrix_from_pref_vectors(user_vectors, score_cb=None):
     # 2) if dimensions are known, build the zero matrix first,
     #     loop once and fill in
     mat = np.zeros((user_idxs.size(), item_idxs.size()), dtype=np.float32)
-    for vector in user_vectors:
+    for vector in pref_vectors:
         row = user_idxs.get_index(vector.user_id)
         for item, score in vector.iter_prefs():
             column = item_idxs.get_index(item)
@@ -91,6 +49,13 @@ def fast_cosine_similarity_matrix(mat):
     cursory testing showed at least an of magnitude improvement
     over calculating the cosine between vectors individually using
     numpy.
+
+    Arguments:
+      mat: an n x m numpy matrix
+
+    Returns:
+      A n x n matrix where the cell (i,j) is the cosine similarity
+      between the ith and jth row vectors.
     """
     # calculate the inner products between all row vectors
     products = mat * mat.T
@@ -105,12 +70,12 @@ def fast_cosine_similarity_matrix(mat):
     return products
 
 
-def compute_item_to_item_cos_sim_mat(mat):
+def item_to_item_cos_sim_mat(mat):
     """Generate a item-to-item similarity matrix, using cosine similarity"""
     return fast_cosine_similarity_matrix(mat.T)
 
 
-def compute_user_to_user_cos_sim_mat(mat):
+def user_to_user_cos_sim_mat(mat):
     """Generate a user-to-user similarity matrix, using cosine similarity"""
     return fast_cosine_similarity_matrix(mat)
 
@@ -127,3 +92,4 @@ def get_user_vector_from_user_item_mat(id_, user_item_mat, user_idxs):
 
 def _top_n_plus_one(_1d_mat, n):
     return _1d_mat.A1.argsort()[-1:-(n + 2):-1].tolist()
+
