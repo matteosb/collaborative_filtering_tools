@@ -43,7 +43,7 @@ class PreferenceVector(object):
             in the resulting numpy matrix.
         """
         arr = np.zeros(item_bimap.size())
-        for item_id, score in self.iter_prefs:
+        for item_id, score in self.iter_prefs():
             index = item_bimap.get_index(item_id)
             arr[index] = score
         return np.matrix(arr).T
