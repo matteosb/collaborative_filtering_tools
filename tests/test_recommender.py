@@ -19,8 +19,12 @@ def build_vectors(nu=NUM_USERS, ni=NUM_ITEMS):
             if r: p.add(i, r)
         yield p
 
-def test_foo():
-    print "***********"
+def test_run():
     vectors = list(build_vectors())
-    print ItemItemCFRecommender(vectors).recommendations_for_user(5)
-    assert 1 == 0
+    recommender = ItemItemCFRecommender(vectors)
+    r1 = recommender.recommendations_for_user(17, n=5)
+    r2 = recommender.recommendations_for_pref_vector(vectors[17], n=5)
+    assert len(r1) == 5
+    np.testing.assert_array_equal(r1, r2)
+
+

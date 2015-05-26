@@ -3,7 +3,7 @@ import numpy as np
 
 
 class ItemItemCFRecommender(object):
-    """Implements item-item collaborative filtering"""\
+    """Implements item-item collaborative filtering"""
 
     def __init__(self, pref_vectors):
         self.user_item_mat = matrix.build_user_item_matrix(pref_vectors)
