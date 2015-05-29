@@ -5,8 +5,8 @@ import numpy as np
 class ItemItemCFRecommender(object):
     """Implements item-item collaborative filtering"""
 
-    def __init__(self, pref_vectors):
-        self.user_item_mat = matrix.build_user_item_matrix(pref_vectors)
+    def __init__(self, user_item_mat):
+        self.user_item_mat = user_item_mat
         self.sim_mat = self.user_item_mat.build_item_similarity_matrix().mat
         self.item_bimap = self.user_item_mat.item_bimap
 

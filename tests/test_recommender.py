@@ -21,7 +21,7 @@ def build_vectors(nu=NUM_USERS, ni=NUM_ITEMS):
 
 def test_run():
     vectors = list(build_vectors())
-    recommender = ItemItemCFRecommender(vectors)
+    recommender = ItemItemCFRecommender(matrix.build_user_item_matrix(vectors))
     r1 = recommender.recommendations_for_user(17, n=5)
     r2 = recommender.recommendations_for_pref_vector(vectors[17], n=5)
     assert len(r1) == 5
