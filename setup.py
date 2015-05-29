@@ -4,7 +4,7 @@ from setuptools import setup
 #     reqs = requirements.read().splitlines()
 
 setup(
-    name='Collaborative Filtering Tools',
+    name='cf_tools',
     version='0.1',
     description=('A library for collaborative filtering'
                  'and similarity-based recommendations'),
@@ -12,6 +12,6 @@ setup(
     author_email='matteobanerjee@gmail.com',
     url='https://github.com/matteobanerjee/collaborative_filtering_tools',
     # install_requires=reqs, <-- Currently can't get numpy to install this way
-    packages=['cf_tools'],
+    packages=['cf_tools', 'cf_tools/core', 'cf_tools/recommender'],
     license='MIT'
 )
