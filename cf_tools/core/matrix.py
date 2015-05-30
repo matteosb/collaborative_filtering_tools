@@ -31,13 +31,34 @@ def build_user_item_matrix(pref_vectors, score_cb=None):
     #     and convert to dense (numpy likes dense matrices)
     # 2) if dimensions are known, build the zero matrix first,
     #     loop once and fill in
-    mat = np.zeros((user_idxs.size(), item_idxs.size()), dtype=np.float32)
+    mat = np.zeros((user_idxs.size(), item_idxs.size()), dtype=np.double)
     for vector in pref_vectors:
         row = user_idxs.get_index(vector.user_id)
         for item, score in vector.iter_prefs():
             column = item_idxs.get_index(item)
             mat[row][column] = score_cb(score)
     return UserItemMatrix(np.matrix(mat), user_idxs, item_idxs)
+
+
+def build_similarity_matrix(mat, similarity_measure):
+    """Build a similarity matrix with an arbitrary similarity measure
+
+    Arguments:
+      mat: a user-item or item-user matrix
+      similarity_measure: a similarity function between equal-length 1d arrays
+
+    Return:
+      the similarity matrix (dense, symmetric)
+    """
+    nrow, _ = mat.shape
+    sim_mat = np.zeros((nrow, nrow), dtype=np.double)
+    # TODO: make faster, this is just a test implementation
+    for i in xrange(nrow):
+        for j in xrange(nrow):
+            sim = similarity_measure(mat[i, :].A1, mat[j, :].A1)
+            sim_mat[i, j] =  sim
+            sim_mat[j, i] = sim
+    return sim_mat
 
 
 def fast_cosine_similarity_matrix(mat):

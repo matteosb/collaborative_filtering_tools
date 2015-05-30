@@ -1,4 +1,4 @@
-from cf_tools.core import matrix, PreferenceVector
+from cf_tools.core import matrix, PreferenceVector, similarity
 import numpy as np
 
 from numpy.testing import assert_array_almost_equal, assert_array_equal
@@ -58,3 +58,12 @@ def test_build_user_similarity_matrix():
     assert_almost_equal(umat.mat[0, 1], cosine_1_2)
     assert_almost_equal(umat.mat[0, 2], cosine_1_3)
     assert_almost_equal(umat.mat[1, 2], cosine_2_3)
+
+
+def test_build_similarity_matrix():
+    # for now, just test the two cosine methods match
+    mat = np.matrix('1 2 3; 1 2 3; 0 2 3', dtype=np.double)
+    assert_array_almost_equal(
+        matrix.fast_cosine_similarity_matrix(mat),
+        matrix.build_similarity_matrix(mat, similarity.cosine)
+    )
